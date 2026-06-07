@@ -1,0 +1,132 @@
+{
+    "data": [
+        {
+            "name": "Access Bank",
+            "bank_code": "044"
+        },
+        {
+            "name": "Diamond Bank",
+            "bank_code": "063"
+        },
+        {
+            "name": "Fidelity Bank",
+            "bank_code": "070"
+        },
+        {
+            "name": "FCMB",
+            "bank_code": "214"
+        },
+        {
+            "name": "First Bank Of Nigeria",
+            "bank_code": "011"
+        },
+        {
+            "name": "Guaranty Trust Bank",
+            "bank_code": "058"
+        },
+        {
+            "name": "Polaris Bank",
+            "bank_code": "076"
+        },
+        {
+            "name": "Union Bank",
+            "bank_code": "032"
+        },
+        {
+            "name": "United Bank for Africa",
+            "bank_code": "033"
+        },
+        {
+            "name": "Citibank",
+            "bank_code": "023"
+        },
+        {
+            "name": "Ecobank Bank",
+            "bank_code": "050"
+        },
+        {
+            "name": "Heritage",
+            "bank_code": "030"
+        },
+        {
+            "name": "Keystone Bank",
+            "bank_code": "082"
+        },
+        {
+            "name": "Stanbic IBTC Bank",
+            "bank_code": "039"
+        },
+        {
+            "name": "Standard Chartered Bank",
+            "bank_code": "068"
+        },
+        {
+            "name": "Sterling Bank",
+            "bank_code": "232"
+        },
+        {
+            "name": "Unity Bank",
+            "bank_code": "215"
+        },
+        {
+            "name": "Suntrust Bank",
+            "bank_code": "100"
+        },
+        {
+            "name": "Providus Bank",
+            "bank_code": "101"
+        },
+        {
+            "name": "FBNQuest Merchant Bank",
+            "bank_code": "060002"
+        },
+        {
+            "name": "Greenwich Merchant Bank",
+            "bank_code": "060004"
+        },
+        {
+            "name": "FSDH Merchant Bank",
+            "bank_code": "501"
+        },
+        {
+            "name": "Rand Merchant Bank",
+            "bank_code": "502"
+        },
+        {
+            "name": "Jaiz Bank",
+            "bank_code": "301"
+        },
+        {
+            "name": "Zenith Bank",
+            "bank_code": "057"
+        },
+        {
+            "name": "Wema Bank",
+            "bank_code": "035"
+        },
+        {
+            "name": "Kuda Microfinance Bank",
+            "bank_code": "090267"
+        },
+        {
+            "name": "OPay",
+            "bank_code": "100004"
+        },
+        {
+            "name": "PalmPay",
+            "bank_code": "100033"
+        },
+        {
+            "name": "Paystack-Titan MFB",
+            "bank_code": "100039"
+        },
+        {
+            "name": "Moniepoint MFB",
+            "bank_code": "090405"
+        },
+        {
+            "name": "Safe Haven MFB",
+            "bank_code": "090286"
+        }
+    ]
+}
