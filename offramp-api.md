@@ -1,6 +1,6 @@
 # Linq B2B Offramp API
 
-Convert USDSUI stablecoins to Nigerian Naira (NGN) with direct bank account payouts — programmatically, via API.
+Convert USDSUI or USDC stablecoins to Nigerian Naira (NGN) with direct bank account payouts — programmatically, via API.
 
 ---
 
@@ -9,13 +9,17 @@ Convert USDSUI stablecoins to Nigerian Naira (NGN) with direct bank account payo
 The Linq offramp API lets your application:
 
 1. Generate a unique deposit wallet address for a user
-2. Accept a USDSUI transfer from that user
+2. Accept a USDSUI or USDC transfer from that user
 3. Automatically pay out NGN to any Nigerian bank account
 4. Receive real-time status updates via signed webhooks
 
-**Coin supported:** USDSUI on Sui  
-**Contract:** `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI`  
-**Decimals:** 6 (same as USDC)  
+**Coins supported:**
+
+| Coin | Network | Contract | Decimals |
+|---|---|---|---|
+| USDSUI | Sui | `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI` | 6 |
+| USDC | Sui | `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC` | 6 |
+
 **Payout currencies:** NGN
 
 ---
@@ -192,8 +196,8 @@ async def linq_webhook(request: Request):
 
 | Event | When it fires |
 |---|---|
-| `order.processing` | USDSUI deposit detected — bank payout is now in progress |
-| `order.completed` | Bank payout succeeded and USDSUI has been settled to treasury |
+| `order.processing` | Stablecoin deposit detected — bank payout is now in progress |
+| `order.completed` | Bank payout succeeded and stablecoin has been settled to treasury |
 | `order.failed` | Order timed out (no deposit within 10 minutes) or bank payout failed |
 
 ### Webhook payload
@@ -287,12 +291,15 @@ curl -X POST https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/verifyb
 
 ### Step 4 — Create an offramp order
 
+**USDSUI (default — omit `coin` or set `"coin": "usdsui"`):**
+
 ```bash
 curl -X POST https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/offramp \
   -H "X-API-Key: biz_live_..." \
   -H "Content-Type: application/json" \
   -d '{
     "amountStableCoin": 50.0,
+    "coin": "usdsui",
     "bankAccount": "1234567890",
     "bankCode": "033",
     "bankName": "United Bank for Africa",
@@ -300,6 +307,25 @@ curl -X POST https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/offramp
     "currency": "NGN",
     "customerRef": "user_789",
     "idempotencyKey": "order_abc_20260607"
+  }'
+```
+
+**USDC on Sui (set `"coin": "usdc"`):**
+
+```bash
+curl -X POST https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/offramp \
+  -H "X-API-Key: biz_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amountStableCoin": 50.0,
+    "coin": "usdc",
+    "bankAccount": "1234567890",
+    "bankCode": "033",
+    "bankName": "United Bank for Africa",
+    "accountName": "John Doe",
+    "currency": "NGN",
+    "customerRef": "user_789",
+    "idempotencyKey": "order_abc_20260608"
   }'
 ```
 
@@ -316,7 +342,7 @@ curl -X POST https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/offramp
 }
 ```
 
-Send exactly `amountStableCoin` USDSUI to `walletAddress` within 10 minutes.
+Send exactly `amountStableCoin` of the specified coin to `walletAddress` within 10 minutes. The response `coinType` field contains the exact contract address to use.
 
 ---
 
@@ -403,6 +429,7 @@ Creates a new offramp order. Returns a temporary Sui wallet address where the us
 ```json
 {
   "amountStableCoin": 50.0,
+  "coin": "usdsui",
   "bankAccount": "1234567890",
   "bankCode": "033",
   "bankName": "United Bank for Africa",
@@ -415,12 +442,14 @@ Creates a new offramp order. Returns a temporary Sui wallet address where the us
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `amountStableCoin` | number | Yes | Amount of USDSUI the user will send (e.g. `50.0` = 50 USDSUI) |
+| `amountStableCoin` | number | Yes | Amount the user will send (e.g. `50.0` = 50 tokens) |
+| `coin` | string | No | `"usdsui"` or `"usdc"` — defaults to `"usdsui"` if omitted |
 | `bankAccount` | string | Yes | 10-digit Nigerian bank account number |
 | `bankCode` | string | Yes | Nigerian bank code (e.g. `"033"` for UBA) |
 | `bankName` | string | Yes | Full bank name |
 | `accountName` | string | Yes | Account holder name as it appears at the bank |
 | `currency` | string | Yes | Payout currency — currently `"NGN"` |
+| `refundAddress` | string | No | Sui wallet address to refund the stablecoin to if the bank payout fails. Strongly recommended. |
 | `customerRef` | string | No | Your own reference for this order (echoed in webhooks) |
 | `idempotencyKey` | string | Yes | A unique string per order. Sending the same key twice returns the original order, not a duplicate |
 
@@ -431,6 +460,7 @@ Creates a new offramp order. Returns a temporary Sui wallet address where the us
   "id": "3f7c1b2a-84e9-4c11-b3d2-0a9f7e123456",
   "walletAddress": "0xabc123...",
   "coinType": "0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI",
+  "coin": "usdsui",
   "amountStableCoin": 50.0,
   "amountNGN": 82750.00,
   "rate": 1655.00,
@@ -609,7 +639,7 @@ Issues a new webhook signing secret. All future webhooks will be signed with the
 }
 ```
 
-> Your webhook secret is also visible in the [B2B merchant dashboard](https://dashboard.uselinq.com). It is never returned after signup unless you explicitly rotate it here.
+> Your webhook secret is never returned after signup unless you explicitly rotate it here.
 
 ---
 
@@ -620,12 +650,14 @@ Issues a new webhook signing secret. All future webhooks will be signed with the
    → Show user: "You will receive ₦82,750 for 50 USDSUI"
 
 2. Call POST /b2b/offramp
-   → Get back walletAddress
+   → Include "coin": "usdsui" or "coin": "usdc" (defaults to usdsui)
+   → Get back walletAddress + coinType (the exact contract address)
 
 3. Show walletAddress to your user
    → "Send exactly 50 USDSUI to: 0xabc123..."
+   → Use coinType from the response to populate the Sui transfer params
 
-4. User sends USDSUI from their Sui wallet
+4. User sends USDSUI or USDC from their Sui wallet
 
 5. Linq detects deposit → fires "order.processing" webhook
    → Update your UI: "Payment received, sending to bank..."
@@ -696,6 +728,41 @@ Store the key alongside the order in your own database so you can reuse it safel
 
 ---
 
+## Computing amountStableCoin from a naira input
+
+If your UI lets users type an NGN amount and you need to derive the stablecoin amount to send, divide by the rate — but always **round up to 2 decimal places** before passing the value to the API and showing it to the user. Sending more decimal places than 2 creates a value the user's wallet app can't easily type (e.g. `0.582072`).
+
+**Why round up?** The actual NGN payout is based on whatever stablecoin arrives in the deposit wallet. Rounding up ensures the user always sends *enough* to cover the order. The tiny overage (fractions of a kobo) sweeps to treasury.
+
+**Node.js:**
+```js
+const rate = 1655  // from GET /b2b/rate
+const ngnAmount = 1000
+
+// BAD — too many decimals
+const raw = ngnAmount / rate  // 0.604229...
+
+// GOOD — round up to 2 decimal places
+const amountStableCoin = Math.ceil(raw * 100) / 100  // 0.61
+```
+
+**Python:**
+```python
+import math
+
+rate = 1655  # from GET /b2b/rate
+ngn_amount = 1000
+
+raw = ngn_amount / rate  # 0.604229...
+amount_stable_coin = math.ceil(raw * 100) / 100  # 0.61
+```
+
+Use this value for both `amountStableCoin` in the order request and the "Send X USDSUI" instruction shown to your user. The locked `amountNGN` returned in the response is what the recipient will receive — it may be slightly more than the naira amount typed (rounding up means slightly more stablecoin → slightly more naira).
+
+> Always fetch a fresh rate from `GET /b2b/rate` immediately before creating the order — don't cache rates for longer than a few seconds.
+
+---
+
 ## Nigerian bank codes
 
 The full list of supported bank codes is in [`nigerian-banks.json`](./nigerian-banks.json) (same directory as this file). Load it in your integration to populate bank selection dropdowns.
@@ -745,6 +812,9 @@ The order expires. An `order.failed` webhook fires with status `timeout: no depo
 
 **Is there a fee?**  
 No fee is deducted from the USDSUI. The full deposited amount converts to NGN at the market rate.
+
+**What if the bank payout fails after the user already sent crypto?**  
+If you provided a `refundAddress` in the order request, the stablecoin is automatically swept back to that address. If no `refundAddress` was set, contact support — the funds are held in the deposit wallet and processed manually. Always include `refundAddress`.
 
 **What if my webhook endpoint is down when an event fires?**  
 The webhook attempt is made once. Implement polling via `GET /b2b/status` as a fallback to reconcile any missed events.
