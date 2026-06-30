@@ -1,6 +1,6 @@
 # Linq B2B Offramp API
 
-Convert USDSUI or USDC stablecoins to Nigerian Naira (NGN) with direct bank account payouts — programmatically, via API.
+Convert stablecoins to Nigerian Naira (NGN) with direct bank account payouts — programmatically, via API.
 
 ---
 
@@ -8,17 +8,24 @@ Convert USDSUI or USDC stablecoins to Nigerian Naira (NGN) with direct bank acco
 
 The Linq offramp API lets your application:
 
-1. Generate a unique deposit wallet address for a user
-2. Accept a USDSUI or USDC transfer from that user
+1. Generate a unique deposit wallet address for a user on any supported chain
+2. Accept a stablecoin transfer from that user
 3. Automatically pay out NGN to any Nigerian bank account
 4. Receive real-time status updates via signed webhooks
 
-**Coins supported:**
+**Chains and coins supported:**
 
-| Coin | Network | Contract | Decimals |
+| `coin` value | Chain | Token | Contract / Mint |
 |---|---|---|---|
-| USDSUI | Sui | `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI` | 6 |
-| USDC | Sui | `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC` | 6 |
+| `usdsui` | Sui | USDSUI | `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI` |
+| `usdc` | Sui | USDC | `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC` |
+| `solana` | Solana | USDC | `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
+| `base` | Base | USDC | `0x833589fcd6edb6e08f4c7c32d4f71b54bda02913` |
+| `bsc` | BSC | USDC | `0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d` |
+| `tron` | Tron | USDT | `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t` |
+| `aptos` | Aptos | USDC | `0xbae207659db88bea0cbead6da0c9b6be9ad428ee02e6660600000000000000006` |
+
+The `coinType` field in the order response always contains the token contract/mint address for the selected chain.
 
 **Payout currencies:** NGN
 
@@ -210,12 +217,14 @@ async def linq_webhook(request: Request):
   "amountNGN": 82750.00,
   "amountFormatted": "50.000000",
   "currency": "NGN",
-  "chain": "usdsui",
+  "chain": "solana",
   "txHash": "",
   "status": "Settled in treasury",
   "timestamp": "2026-06-07T14:23:01Z"
 }
 ```
+
+The `chain` field matches the `coin` value used when creating the order (e.g. `"solana"`, `"base"`, `"usdsui"`).
 
 ### Responding to webhooks
 
@@ -291,14 +300,14 @@ curl -X POST https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/verifyb
 
 ### Step 4 — Create an offramp order
 
-**USDSUI (default — omit `coin` or set `"coin": "usdsui"`):**
+**USDSUI on Sui (default):**
 
 ```bash
 curl -X POST https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/offramp \
   -H "X-API-Key: biz_live_..." \
   -H "Content-Type: application/json" \
   -d '{
-    "amountStableCoin": 50.0,
+    "amountNGN": 2000.00,
     "coin": "usdsui",
     "bankAccount": "1234567890",
     "bankCode": "033",
@@ -310,39 +319,43 @@ curl -X POST https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/offramp
   }'
 ```
 
-**USDC on Sui (set `"coin": "usdc"`):**
+**USDC on Solana:**
 
 ```bash
 curl -X POST https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/offramp \
   -H "X-API-Key: biz_live_..." \
   -H "Content-Type: application/json" \
   -d '{
-    "amountStableCoin": 50.0,
-    "coin": "usdc",
+    "amountNGN": 5000.00,
+    "coin": "solana",
     "bankAccount": "1234567890",
     "bankCode": "033",
     "bankName": "United Bank for Africa",
     "accountName": "John Doe",
     "currency": "NGN",
+    "refundAddress": "your-solana-wallet-address",
     "customerRef": "user_789",
-    "idempotencyKey": "order_abc_20260608"
+    "idempotencyKey": "order_sol_20260607"
   }'
 ```
+
+**Response (same shape for all chains):**
 
 ```json
 {
   "id": "3f7c1b2a-...",
-  "walletAddress": "0xabc123...",
-  "coinType": "0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI",
-  "amountStableCoin": 50.0,
-  "amountNGN": 82750.00,
-  "rate": 1655.00,
+  "walletAddress": "7vBmEXAMPLEqNSuTK2xxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "coinType": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "coin": "solana",
+  "amountStableCoin": 3.04,
+  "amountNGN": 5000.00,
+  "rate": 1644.74,
   "currency": "NGN",
   "status": "initiated"
 }
 ```
 
-Send exactly `amountStableCoin` of the specified coin to `walletAddress` within 10 minutes. The response `coinType` field contains the exact contract address to use.
+The `walletAddress` format depends on the chain: a base58 address for Solana, a `0x` EVM address for Base/BSC, a `T` Tron address for Tron, etc. Send `amountStableCoin` of the token identified by `coinType` to `walletAddress` within 10 minutes.
 
 ---
 
@@ -383,9 +396,9 @@ curl -X POST https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/regener
 GET /b2b/rate
 ```
 
-Returns the current NGN exchange rate for USDSUI. No authentication required.
+Returns the current NGN exchange rate. No authentication required.
 
-Use this before creating an order to show users how much NGN they will receive.
+Use this before creating an order to show users how much NGN they will receive. The rate applies to all supported coins.
 
 **Response**
 
@@ -397,7 +410,7 @@ Use this before creating an order to show users how much NGN they will receive.
 }
 ```
 
-**Rate interpretation:** `1 USDSUI = 1655 NGN`
+**Rate interpretation:** `1 USD stablecoin = 1655 NGN`
 
 > Rates fluctuate. The rate is locked at order creation time — the value returned by this endpoint is for display purposes only.
 
@@ -415,7 +428,7 @@ curl https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/rate
 POST /b2b/offramp
 ```
 
-Creates a new offramp order. Returns a temporary Sui wallet address where the user must send their USDSUI. Once the deposit is detected, Linq automatically initiates the bank payout.
+Creates a new offramp order. Returns a temporary deposit wallet address on the requested chain where the user must send their stablecoin. Once the deposit is detected, Linq automatically initiates the bank payout.
 
 **Headers**
 
@@ -426,15 +439,18 @@ Creates a new offramp order. Returns a temporary Sui wallet address where the us
 
 **Request body**
 
+Exactly one of `amountNGN` or `amountStableCoin` must be provided. See [Exact NGN mode vs stablecoin mode](#exact-ngn-mode-vs-stablecoin-mode) for guidance on which to use.
+
 ```json
 {
-  "amountStableCoin": 50.0,
-  "coin": "usdsui",
+  "amountNGN": 2000.00,
+  "coin": "solana",
   "bankAccount": "1234567890",
   "bankCode": "033",
   "bankName": "United Bank for Africa",
   "accountName": "John Doe",
   "currency": "NGN",
+  "refundAddress": "your-wallet-address-on-the-selected-chain",
   "customerRef": "your-internal-user-id-or-reference",
   "idempotencyKey": "unique-key-per-order"
 }
@@ -442,14 +458,15 @@ Creates a new offramp order. Returns a temporary Sui wallet address where the us
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `amountStableCoin` | number | Yes | Amount the user will send (e.g. `50.0` = 50 tokens) |
-| `coin` | string | No | `"usdsui"` or `"usdc"` — defaults to `"usdsui"` if omitted |
+| `amountNGN` | number | One of | Exact NGN amount the recipient will receive. Linq calculates the required stablecoin amount using ceiling rounding. **Recommended for NGN-first flows.** |
+| `amountStableCoin` | number | One of | Stablecoin amount the user will send (e.g. `50.0`). NGN payout is derived from this at the locked rate. |
+| `coin` | string | No | Which chain and token to accept. One of: `usdsui`, `usdc`, `solana`, `base`, `bsc`, `tron`, `aptos`. Defaults to `usdsui` if omitted. |
 | `bankAccount` | string | Yes | 10-digit Nigerian bank account number |
 | `bankCode` | string | Yes | Nigerian bank code (e.g. `"033"` for UBA) |
 | `bankName` | string | Yes | Full bank name |
 | `accountName` | string | Yes | Account holder name as it appears at the bank |
 | `currency` | string | Yes | Payout currency — currently `"NGN"` |
-| `refundAddress` | string | No | Sui wallet address to refund the stablecoin to if the bank payout fails. Strongly recommended. |
+| `refundAddress` | string | No | Wallet address **on the same chain** to refund to if the bank payout fails. Strongly recommended — omitting this means manual recovery is required. |
 | `customerRef` | string | No | Your own reference for this order (echoed in webhooks) |
 | `idempotencyKey` | string | Yes | A unique string per order. Sending the same key twice returns the original order, not a duplicate |
 
@@ -458,12 +475,12 @@ Creates a new offramp order. Returns a temporary Sui wallet address where the us
 ```json
 {
   "id": "3f7c1b2a-84e9-4c11-b3d2-0a9f7e123456",
-  "walletAddress": "0xabc123...",
-  "coinType": "0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI",
-  "coin": "usdsui",
-  "amountStableCoin": 50.0,
-  "amountNGN": 82750.00,
-  "rate": 1655.00,
+  "walletAddress": "7vBmEXAMPLEqNSuTK2xxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "coinType": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "coin": "solana",
+  "amountStableCoin": 3.04,
+  "amountNGN": 5000.00,
+  "rate": 1644.74,
   "currency": "NGN",
   "status": "initiated"
 }
@@ -472,27 +489,62 @@ Creates a new offramp order. Returns a temporary Sui wallet address where the us
 | Field | Description |
 |---|---|
 | `id` | Unique order ID — use this to poll for status or match with webhooks |
-| `walletAddress` | Sui wallet address the user must send USDSUI to |
-| `coinType` | The exact coin type to send (USDSUI contract address) |
-| `amountStableCoin` | Expected USDSUI amount |
+| `walletAddress` | Deposit wallet address on the selected chain. Format varies by chain (base58 for Solana, `0x…` for EVM chains, `T…` for Tron) |
+| `coinType` | Token contract/mint address to send. Populate this into your transfer call. |
+| `coin` | The chain/token identifier echoed from the request |
+| `amountStableCoin` | Amount to send (with `amountNGN` mode: the minimum required, ceiling-rounded) |
 | `amountNGN` | NGN amount the recipient will receive |
 | `rate` | Locked exchange rate for this order |
 
-**Example**
+**Examples by chain**
 
 ```bash
-curl -X POST https://confidential-brianna-uselinq-52e2b233.koyeb.app/b2b/offramp \
+# USDC on Base
+curl -X POST .../b2b/offramp \
   -H "X-API-Key: your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
-    "amountStableCoin": 50.0,
+    "amountNGN": 10000.00,
+    "coin": "base",
     "bankAccount": "1234567890",
-    "bankCode": "033",
-    "bankName": "United Bank for Africa",
+    "bankCode": "057",
+    "bankName": "Zenith Bank",
+    "accountName": "Jane Doe",
+    "currency": "NGN",
+    "refundAddress": "0xYourBaseWalletAddress",
+    "idempotencyKey": "order_base_20260607"
+  }'
+
+# USDT on Tron
+curl -X POST .../b2b/offramp \
+  -H "X-API-Key: your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amountNGN": 3000.00,
+    "coin": "tron",
+    "bankAccount": "9876543210",
+    "bankCode": "011",
+    "bankName": "First Bank",
     "accountName": "John Doe",
     "currency": "NGN",
-    "customerRef": "user_789",
-    "idempotencyKey": "order_abc_20260607"
+    "refundAddress": "TYourTronWalletAddress",
+    "idempotencyKey": "order_tron_20260607"
+  }'
+
+# USDC on BSC
+curl -X POST .../b2b/offramp \
+  -H "X-API-Key: your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amountStableCoin": 10.0,
+    "coin": "bsc",
+    "bankAccount": "1234567890",
+    "bankCode": "058",
+    "bankName": "GTBank",
+    "accountName": "Jane Smith",
+    "currency": "NGN",
+    "refundAddress": "0xYourBscWalletAddress",
+    "idempotencyKey": "order_bsc_20260607"
   }'
 ```
 
@@ -518,8 +570,8 @@ Poll this endpoint to check the current state of an order.
 {
   "id": "3f7c1b2a-...",
   "status": "disbursed",
-  "amountStableCoin": 50.0,
-  "amountNGN": 82750.00,
+  "amountStableCoin": 3.04,
+  "amountNGN": 5000.00,
   "currency": "NGN",
   "created": "2026-06-07T14:00:00Z",
   "updated": "2026-06-07T14:04:33Z"
@@ -530,11 +582,11 @@ Poll this endpoint to check the current state of an order.
 
 | Status | Meaning |
 |---|---|
-| `initiated` | Order created — waiting for USDSUI deposit |
+| `initiated` | Order created — waiting for stablecoin deposit |
 | `processing: wallet worker on it..` | Actively watching the deposit wallet |
 | `processing: in bank queue` | Deposit confirmed — bank payout queued |
 | `disbursed` | NGN sent to bank account successfully |
-| `Settled in treasury` | Fully complete — USDSUI swept to treasury |
+| `Settled in treasury` | Fully complete — stablecoin swept to treasury |
 | `timeout: no deposit received` | No deposit was detected within 10 minutes |
 | `failed` | Bank payout failed |
 
@@ -645,26 +697,72 @@ Issues a new webhook signing secret. All future webhooks will be signed with the
 
 ## Integration flow
 
+**NGN-first (recommended):**
+```
+1. User enters the NGN amount they want to send (e.g. ₦5,000) and selects a chain
+
+2. Call GET /b2b/rate → show indicative rate to user
+
+3. Call POST /b2b/offramp with amountNGN: 5000.00, coin: "solana"
+   → Linq locks the rate and returns amountStableCoin (e.g. 3.04 USDC)
+   → amountNGN in the response is exactly what the recipient will receive
+
+4. Show walletAddress to your user
+   → "Send exactly 3.04 USDC to: 7vBm..."
+   → Use coinType from the response to identify the correct token
+   → Address format depends on chain: base58 for Solana, 0x for EVM, T for Tron
+
+5. User sends from their wallet on the matching chain
+
+6. Linq detects deposit → fires "order.processing" webhook
+7. Bank payout completes → fires "order.completed" webhook
+   → event.amountNGN = exactly ₦5,000.00
+```
+
+**Stablecoin-first (existing integrations):**
 ```
 1. Call GET /b2b/rate
-   → Show user: "You will receive ₦82,750 for 50 USDSUI"
-
-2. Call POST /b2b/offramp
-   → Include "coin": "usdsui" or "coin": "usdc" (defaults to usdsui)
-   → Get back walletAddress + coinType (the exact contract address)
-
-3. Show walletAddress to your user
-   → "Send exactly 50 USDSUI to: 0xabc123..."
-   → Use coinType from the response to populate the Sui transfer params
-
-4. User sends USDSUI or USDC from their Sui wallet
-
-5. Linq detects deposit → fires "order.processing" webhook
-   → Update your UI: "Payment received, sending to bank..."
-
-6. Bank payout completes → fires "order.completed" webhook
-   → Update your UI: "₦82,750 sent to your bank account"
+2. Call POST /b2b/offramp with amountStableCoin: 50.0, coin: "usdsui"
+   → Linq calculates amountNGN from the locked rate
+3–7. Same as above
 ```
+
+---
+
+## Chain-specific notes
+
+### Solana (`coin: "solana"`)
+- Token: USDC (SPL), mint `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`
+- Wallet address format: base58, e.g. `7vBmEXAMPLE...`
+- `refundAddress` must be a valid Solana public key
+
+### Base (`coin: "base"`)
+- Token: USDC (ERC-20), contract `0x833589fcd6edb6e08f4c7c32d4f71b54bda02913`
+- Wallet address format: EVM `0x…`
+- `refundAddress` must be a valid EVM address
+
+### BSC (`coin: "bsc"`)
+- Token: USDC (BEP-20), contract `0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d`
+- Wallet address format: EVM `0x…`
+- `refundAddress` must be a valid EVM address
+
+### Tron (`coin: "tron"`)
+- Token: USDT (TRC-20), contract `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`
+- Wallet address format: starts with `T`, e.g. `TExAMPLE...`
+- `refundAddress` must be a valid Tron address
+
+### Aptos (`coin: "aptos"`)
+- Token: USDC (FA), type `0xbae207659db88bea0cbead6da0c9b6be9ad428ee02e6660600000000000000006`
+- Wallet address format: `0x…` hex
+- `refundAddress` must be a valid Aptos address
+
+### Sui USDSUI (`coin: "usdsui"`, default)
+- Token: USDSUI, contract `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI`
+- `refundAddress` must be a valid Sui address
+
+### Sui USDC (`coin: "usdc"`)
+- Token: USDC on Sui, contract `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC`
+- `refundAddress` must be a valid Sui address
 
 ---
 
@@ -728,38 +826,76 @@ Store the key alongside the order in your own database so you can reuse it safel
 
 ---
 
-## Computing amountStableCoin from a naira input
+## Exact NGN mode vs stablecoin mode
 
-If your UI lets users type an NGN amount and you need to derive the stablecoin amount to send, divide by the rate — but always **round up to 2 decimal places** before passing the value to the API and showing it to the user. Sending more decimal places than 2 creates a value the user's wallet app can't easily type (e.g. `0.582072`).
+### Exact NGN mode — `amountNGN` (recommended for NGN-first flows)
 
-**Why round up?** The actual NGN payout is based on whatever stablecoin arrives in the deposit wallet. Rounding up ensures the user always sends *enough* to cover the order. The tiny overage (fractions of a kobo) sweeps to treasury.
+Pass the exact NGN amount the recipient should receive. Linq calculates the required stablecoin amount server-side using ceiling rounding and locks it into the order. The bank payout is always exactly `amountNGN` — it does not change regardless of rate movement after order creation.
 
-**Node.js:**
 ```js
-const rate = 1655  // from GET /b2b/rate
-const ngnAmount = 1000
+// Node.js — NGN-first flow (Solana example)
+const order = await fetch('/b2b/offramp', {
+  method: 'POST',
+  body: JSON.stringify({
+    amountNGN: 5000.00,   // ← exactly what recipient receives
+    coin: 'solana',
+    refundAddress: 'your-solana-wallet',
+    // ... bank details
+  })
+}).then(r => r.json());
 
-// BAD — too many decimals
-const raw = ngnAmount / rate  // 0.604229...
+// Tell user to send:
+console.log(`Send ${order.amountStableCoin} USDC to ${order.walletAddress}`);
+// e.g. "Send 3.04 USDC to 7vBm..."
 
-// GOOD — round up to 2 decimal places
-const amountStableCoin = Math.ceil(raw * 100) / 100  // 0.61
+// Webhook confirms exact payout:
+// event.amountNGN === 5000.00  ✓
 ```
 
-**Python:**
+```python
+# Python — NGN-first flow
+import requests
+
+order = requests.post('/b2b/offramp', json={
+    'amountNGN': 5000.00,
+    'coin': 'base',
+    'refundAddress': '0xYourBaseWallet',
+    # ... bank details
+}).json()
+
+print(f"Send {order['amountStableCoin']} USDC to {order['walletAddress']}")
+```
+
+**Why this is precise:** The `amountNGN` you pass is locked at order creation. The stablecoin amount (`amountStableCoin` in the response) is calculated as `ceil(amountNGN / rate * 100) / 100` — ceiling-rounded to 2 decimal places so the user always sends at least enough. The tiny surplus (if any) sweeps to treasury. Your recipient always gets exactly the NGN amount specified.
+
+---
+
+### Stablecoin mode — `amountStableCoin` (existing integrations)
+
+Pass the stablecoin amount directly. Linq derives `amountNGN` from the locked rate at order creation. This is the original behaviour — existing integrations work without any changes.
+
+If your users type an NGN amount and you derive the stablecoin value yourself, always **round up to 2 decimal places** to avoid underpayment:
+
+```js
+// Node.js — manual NGN → stablecoin conversion
+const rate = 1655  // from GET /b2b/rate, fetch immediately before creating order
+const ngnAmount = 5000
+
+const amountStableCoin = Math.ceil((ngnAmount / rate) * 100) / 100  // 3.03
+```
+
 ```python
 import math
 
-rate = 1655  # from GET /b2b/rate
-ngn_amount = 1000
+rate = 1655
+ngn_amount = 5000
 
-raw = ngn_amount / rate  # 0.604229...
-amount_stable_coin = math.ceil(raw * 100) / 100  # 0.61
+amount_stable_coin = math.ceil((ngn_amount / rate) * 100) / 100  # 3.03
 ```
 
-Use this value for both `amountStableCoin` in the order request and the "Send X USDSUI" instruction shown to your user. The locked `amountNGN` returned in the response is what the recipient will receive — it may be slightly more than the naira amount typed (rounding up means slightly more stablecoin → slightly more naira).
+> **Note:** In this mode, `amountNGN` in the response is derived from your stablecoin value at the locked rate and may not match the user's original NGN input exactly. If exact NGN precision matters, switch to `amountNGN` mode.
 
-> Always fetch a fresh rate from `GET /b2b/rate` immediately before creating the order — don't cache rates for longer than a few seconds.
+> Always fetch a fresh rate from `GET /b2b/rate` immediately before creating the order. Do not cache rates.
 
 ---
 
@@ -798,23 +934,35 @@ See `nigerian-banks.json` for all 32 supported banks.
 | Minimum order | No minimum (subject to bank payout minimum) |
 | Maximum order | Contact support for high-volume limits |
 | Rate limit | 10 orders per minute per API key |
-| Deposit window | 10 minutes — user must send USDSUI within 10 minutes of order creation |
+| Deposit window | 10 minutes — user must send the stablecoin within 10 minutes of order creation |
 
 ---
 
 ## FAQ
 
+**What is the difference between `amountNGN` and `amountStableCoin`, and which should I use?**  
+Use `amountNGN` if your users pay in naira — pass the exact NGN amount and Linq handles the crypto calculation. The bank payout is guaranteed to be exactly that figure. Use `amountStableCoin` if your users pay in crypto and you already know the token amount. You cannot pass both fields in the same request.
+
+**Which chain should I use?**  
+Use whichever chain your users already hold funds on. The NGN payout amount and bank routing are the same for all chains — only the deposit side changes. If your users have USDC on Solana, pass `coin: "solana"`. If they use Tron, pass `coin: "tron"`.
+
+**Does the `coin` field change the NGN payout amount?**  
+No. The payout amount is always calculated from the NGN rate and the stablecoin amount, regardless of which chain is used. All supported tokens are pegged 1:1 to USD.
+
 **What happens if the user sends a different amount than `amountStableCoin`?**  
-Linq detects whatever USDSUI arrives in the wallet and pays out the equivalent NGN at the locked rate. The `amountStableCoin` in the order request is informational — the actual payout is based on what arrives.
+Linq detects whatever stablecoin arrives in the wallet. If you used `amountNGN` mode, the bank payout is always exactly `amountNGN` regardless of what arrives (as long as at least `amountStableCoin` was sent). If you used `amountStableCoin` mode, the payout is based on whatever arrives at the locked rate.
 
 **What happens if the user sends nothing within 10 minutes?**  
 The order expires. An `order.failed` webhook fires with status `timeout: no deposit received`. Create a new order with a new `idempotencyKey` if the user wants to try again.
 
 **Is there a fee?**  
-No fee is deducted from the USDSUI. The full deposited amount converts to NGN at the market rate.
+No fee is deducted from the stablecoin. The full deposited amount converts to NGN at the market rate.
 
 **What if the bank payout fails after the user already sent crypto?**  
-If you provided a `refundAddress` in the order request, the stablecoin is automatically swept back to that address. If no `refundAddress` was set, contact support — the funds are held in the deposit wallet and processed manually. Always include `refundAddress`.
+If you provided a `refundAddress` in the order request, the stablecoin is automatically swept back to that address on the same chain. If no `refundAddress` was set, contact support — the funds are held in the deposit wallet and processed manually. Always include `refundAddress`.
+
+**Must `refundAddress` be on the same chain as `coin`?**  
+Yes. For `coin: "solana"`, provide a Solana address. For `coin: "base"`, provide an EVM address. For `coin: "tron"`, provide a Tron address. A mismatched address format will prevent automatic refunds.
 
 **What if my webhook endpoint is down when an event fires?**  
 The webhook attempt is made once. Implement polling via `GET /b2b/status` as a fallback to reconcile any missed events.
